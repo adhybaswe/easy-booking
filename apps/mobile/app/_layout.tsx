@@ -7,6 +7,18 @@ import 'react-native-reanimated';
 
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { supabase } from '@/src/services/supabase';
+import { registerForPushNotificationsAsync, savePushToken } from '@/src/services/notifications';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 function InitialLayout() {
   const { session, setSession, isAuthenticated } = useAuthStore();
@@ -34,13 +46,20 @@ function InitialLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (isAuthenticated && inAuthGroup) {
-      // If user is signed in and trying to access auth pages, redirect to home
       router.replace('/(tabs)');
     } else if (!isAuthenticated && !inAuthGroup) {
-      // If user is not signed in and trying to access app pages, redirect to login
       router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, segments, isMounted]);
+
+    // Handle Push Notifications when authenticated
+    if (isAuthenticated && session?.user?.id) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          savePushToken(session.user.id, token);
+        }
+      });
+    }
+  }, [isAuthenticated, segments, isMounted, session]);
 
   if (!isMounted) {
     return (

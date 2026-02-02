@@ -96,15 +96,13 @@ export default function BookingScreen() {
                 .select()
                 .single();
 
-            if (bookingError) throw bookingError;
-
-            // Mark schedule as unavailable
-            const { error: scheduleError } = await supabase
-                .from('schedules')
-                .update({ is_available: false })
-                .eq('id', selectedSchedule.id);
-
-            if (scheduleError) throw scheduleError;
+            if (bookingError) {
+                console.error('Booking Insert Error:', bookingError);
+                if (bookingError.code === '23505') {
+                    throw new Error('This time slot has just been taken by someone else. Please choose another one.');
+                }
+                throw new Error(bookingError.message || 'Failed to create booking record');
+            }
 
             Alert.alert(
                 'Success!',
@@ -117,8 +115,8 @@ export default function BookingScreen() {
                 ]
             );
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to create booking');
-            console.error(error);
+            console.error('Full Booking Error:', error);
+            Alert.alert('Booking Error', error.message || 'An unexpected error occurred');
         } finally {
             setBookingLoading(false);
         }

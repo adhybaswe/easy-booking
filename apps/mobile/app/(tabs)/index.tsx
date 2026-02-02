@@ -1,20 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '@/src/services/supabase';
 import { Service } from '@/src/types';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { Bell } from 'lucide-react-native';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     fetchServices();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkNotifications();
+    }, [user])
+  );
+
+  const checkNotifications = async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      if (!error && count && count > 0) {
+        setHasUnread(true);
+      } else {
+        setHasUnread(false);
+      }
+    } catch (e) {
+      console.warn('Check notifications error:', e);
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -24,16 +52,10 @@ export default function HomeScreen() {
         .eq('is_active', true)
         .order('name');
 
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        setServices(data);
-      }
+      if (error) throw error;
+      if (data) setServices(data);
     } catch (error: any) {
       console.error('Error fetching services:', error.message);
-      // Optional: Alert.alert('Error', 'Failed to load services');
     } finally {
       setLoading(false);
     }
@@ -49,9 +71,19 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.greeting}>{getGreeting()} {user?.email ? `👋` : ''}</Text>
-          <Text style={styles.title}>Book a Service</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greeting}>{getGreeting()} {user?.email ? `👋` : ''}</Text>
+            <Text style={styles.title}>Book a Service</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications')}
+            activeOpacity={0.7}
+          >
+            <Bell size={24} color="#0F172A" />
+            {hasUnread && <View style={styles.unreadBadge} />}
+          </TouchableOpacity>
         </View>
 
         {loading ? (
@@ -102,8 +134,39 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
-  header: {
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  notificationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   greeting: {
     fontSize: 16,

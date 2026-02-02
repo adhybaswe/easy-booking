@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/src/services/supabase';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { useFocusEffect } from 'expo-router';
 
 interface BookingItem {
     id: string;
@@ -30,12 +31,12 @@ export default function BookingsScreen() {
             const { data, error } = await supabase
                 .from('bookings')
                 .select(`
-          id,
-          status,
-          created_at,
-          services ( name ),
-          schedules ( date, start_time )
-        `)
+                  id,
+                  status,
+                  created_at,
+                  services ( name ),
+                  schedules ( date, start_time )
+                `)
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
@@ -49,8 +50,37 @@ export default function BookingsScreen() {
         }
     };
 
+    // 1. Initial and Focus-based fetch
+    useFocusEffect(
+        useCallback(() => {
+            fetchBookings();
+        }, [user])
+    );
+
+    // 2. Real-time subscription for immediate updates
     useEffect(() => {
-        fetchBookings();
+        if (!user) return;
+
+        const channel = supabase
+            .channel(`user-bookings-${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Real-time booking update:', payload);
+                    fetchBookings(); // Refetch to get joined data
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [user]);
 
     const onRefresh = () => {
@@ -79,6 +109,7 @@ export default function BookingsScreen() {
     };
 
     const formatDate = (dateStr: string) => {
+        if (!dateStr) return '';
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-US', {
             weekday: 'short',
@@ -128,7 +159,9 @@ export default function BookingsScreen() {
                         </View>
                         <View style={styles.cardBody}>
                             <Text style={styles.dateText}>{formatDate(item.schedules?.date)}</Text>
-                            <Text style={styles.timeText}>{item.schedules?.start_time.substring(0, 5)}</Text>
+                            <Text style={styles.timeText}>
+                                {item.schedules?.start_time ? item.schedules.start_time.substring(0, 5) : ''}
+                            </Text>
                         </View>
                     </View>
                 )}

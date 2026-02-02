@@ -4,6 +4,8 @@ export interface User {
     id: string;
     email: string;
     role: Role;
+    full_name?: string;
+    phone_number?: string;
     created_at: string;
 }
 

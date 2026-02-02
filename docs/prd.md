@@ -136,17 +136,24 @@ This product is designed as a portfolio-grade full-stack mobile application to d
 
 ## 6. Technical Stack
 
-### 6.1 Frontend (Mobile App)
-- React Native (Expo)
-- TypeScript
-- State management (Zustand)
-- Native UI components
+### 6.1 Architecture
+- Monorepo using **Turborepo**
+- Package manager: **pnpm** (Workspaces)
 
-### 6.2 Frontend (Admin Dashboard - Web)
-- React (Vite)
-- TypeScript
-- Tailwind CSS
-- State management (Zustand)
+### 6.2 Frontend (Mobile App)
+- **Directory**: `apps/mobile`
+- **Framework**: React Native (Expo)
+- **Navigation**: Expo Router (File-based)
+- **State management**: Zustand
+- **Styling**: Native StyleSheet
+- **Icons**: Lucide React Native & Expo Icons
+
+### 6.3 Frontend (Admin Dashboard - Web)
+- **Directory**: `apps/admin`
+- **Framework**: React 19 (Vite)
+- **Styling**: **Tailwind CSS v4** (CSS-first approach)
+- **State management**: Zustand
+- **Icons**: Lucide React
 
 ### 6.3 Backend
 - Supabase
@@ -241,4 +248,21 @@ Login → Manage Services → Set Schedule → View Bookings → Update Status
 - Admin Dashboard (Web) for Service Providers
 - Backend configuration (Supabase)
 - Technical documentation and README
+---
+
+## 13. Project Implementation Status (v1.0)
+
+### 13.1 Completed Features
+- [x] **Monorepo Setup**: Turborepo with `apps/mobile` and `apps/admin`.
+- [x] **Mobile Auth**: Login & Register with Supabase.
+- [x] **Mobile Booking**: Service selection, Calendar date picker, and time slot booking.
+- [x] **Mobile History**: Real-time booking history view.
+- [x] **Admin Foundation**: Web dashboard setup with Tailwind v4 and basic layout.
+- [x] **Database Schema**: All tables (Users, Services, Schedules, Bookings) & RLS policies configured.
+
+### 13.2 Pending Features
+- [ ] Admin Service Management (CRUD)
+- [ ] Admin Schedule Management
+- [ ] Admin Booking Approval Workflow
+- [ ] Push Notifications
 
