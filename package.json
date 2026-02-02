@@ -1,0 +1,19 @@
+{
+    "name": "easy-booking",
+    "private": true,
+    "scripts": {
+        "dev": "turbo dev",
+        "start:mobile": "pnpm --filter mobile start",
+        "start:android": "pnpm --filter mobile android",
+        "start:ios": "pnpm --filter mobile ios",
+        "start:admin": "pnpm --filter admin dev",
+        "build": "turbo build",
+        "lint": "turbo lint",
+        "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    },
+    "devDependencies": {
+        "turbo": "latest",
+        "prettier": "latest"
+    },
+    "packageManager": "pnpm@10.12.1"
+}
