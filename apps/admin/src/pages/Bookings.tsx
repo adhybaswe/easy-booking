@@ -6,7 +6,10 @@ import {
     CheckCheck,
     Search,
     Filter,
-    MoreVertical
+    MoreVertical,
+    Trash2,
+    MessageSquare,
+    AlertCircle
 } from 'lucide-react';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
@@ -17,6 +20,8 @@ interface Booking {
     created_at: string;
     users: {
         email: string;
+        full_name?: string;
+        phone_number?: string;
     };
     services: {
         name: string;
@@ -33,23 +38,32 @@ export default function Bookings() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         fetchBookings();
     }, [statusFilter]);
+
+    useEffect(() => {
+        const handleClickOutside = () => setOpenMenuId(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
 
     const fetchBookings = async () => {
         setLoading(true);
         let query = supabase
             .from('bookings')
             .select(`
-        id,
-        status,
-        created_at,
-        users ( email ),
-        services ( name, price ),
-        schedules ( date, start_time )
-      `)
+                id,
+                status,
+                created_at,
+                users ( email, full_name, phone_number ),
+                services ( name, price ),
+                schedules ( date, start_time )
+            `)
             .order('created_at', { ascending: false });
 
         if (statusFilter !== 'all') {
@@ -64,6 +78,28 @@ export default function Bookings() {
             setBookings(data as any || []);
         }
         setLoading(false);
+    };
+
+    const confirmDelete = (id: string) => {
+        setBookingToDelete(id);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        if (!bookingToDelete) return;
+
+        const { error } = await supabase
+            .from('bookings')
+            .delete()
+            .eq('id', bookingToDelete);
+
+        if (error) {
+            alert('Failed to delete booking: ' + error.message);
+        } else {
+            fetchBookings();
+        }
+        setIsDeleteDialogOpen(false);
+        setBookingToDelete(null);
     };
 
     const updateBookingStatus = async (id: string, newStatus: string) => {
@@ -106,7 +142,6 @@ export default function Bookings() {
                 }
 
                 if (title && body) {
-                    // Send to Expo Push API
                     await fetch('https://exp.host/--/api/v2/push/send', {
                         method: 'POST',
                         headers: {
@@ -236,7 +271,7 @@ export default function Bookings() {
                                                 {getStatusBadge(booking.status)}
                                             </td>
                                             <td className="px-8 py-6 text-right">
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-2 items-center">
                                                     {booking.status === 'pending' && (
                                                         <button
                                                             onClick={() => updateBookingStatus(booking.id, 'confirmed')}
@@ -264,9 +299,49 @@ export default function Bookings() {
                                                             <XCircle size={18} />
                                                         </button>
                                                     )}
-                                                    <button className="p-2.5 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-                                                        <MoreVertical size={18} />
-                                                    </button>
+
+                                                    <div className="relative">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenMenuId(openMenuId === booking.id ? null : booking.id);
+                                                            }}
+                                                            className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                                        >
+                                                            <MoreVertical size={18} />
+                                                        </button>
+
+                                                        {openMenuId === booking.id && (
+                                                            <div
+                                                                className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-left"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {booking.users?.phone_number && (
+                                                                    <a
+                                                                        href={`https://wa.me/${booking.users.phone_number.replace(/\D/g, '')}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                                                                        onClick={() => setOpenMenuId(null)}
+                                                                    >
+                                                                        <MessageSquare size={16} className="text-emerald-500" />
+                                                                        <span>WhatsApp</span>
+                                                                    </a>
+                                                                )}
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setOpenMenuId(null);
+                                                                        confirmDelete(booking.id);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                    <span>Delete Booking</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -280,6 +355,44 @@ export default function Bookings() {
                         <div className="flex gap-4">
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Confirmed</span>
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Pending</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {isDeleteDialogOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => setIsDeleteDialogOpen(false)}
+                    ></div>
+
+                    {/* Modal Content */}
+                    <div className="relative bg-white w-full max-w-sm rounded-[32px] shadow-2xl border border-slate-100 p-8 animate-in zoom-in-95 fade-in duration-200">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
+                                <AlertCircle size={40} className="text-rose-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-900 mb-2">Delete Booking?</h3>
+                            <p className="text-slate-500 leading-relaxed mb-8">
+                                Are you sure you want to permanently delete this booking? This action cannot be undone.
+                            </p>
+                            <div className="flex flex-col w-full gap-3">
+                                <button
+                                    onClick={handleDelete}
+                                    className="w-full py-4 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold rounded-2xl transition-all shadow-lg shadow-rose-200"
+                                >
+                                    Yes, Delete Booking
+                                </button>
+                                <button
+                                    onClick={() => setIsDeleteDialogOpen(false)}
+                                    className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-2xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
